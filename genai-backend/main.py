@@ -10,6 +10,8 @@ from pymongo.errors import ConnectionFailure
 import logging
 from routers.agent_bot_router import router as chatbot_router
 from datetime import datetime
+import gc
+import asyncio
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,11 +27,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS middleware
+# ✅ UPDATED CORS CONFIGURATION - Added Vercel frontend URL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000",
-      'https://job-portal-eight-orcin.vercel.app'],
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://localhost:3000",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "https://job-portal-eight-orcin.vercel.app"  # ✅ Added your Vercel frontend URL
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,6 +82,13 @@ async def check_mongodb_connection():
     except ConnectionFailure as e:
         logger.error(f"❌ MongoDB connection failed: {e}")
 
+@app.on_event("startup")
+async def startup_message():
+    """Log startup information"""
+    logger.info("🚀 GenAI Job Assistant API is starting up...")
+    logger.info(f"📝 CORS origins configured for frontend access")
+    logger.info(f"🔧 Service optimized for stability and performance")
+
 # ============== HEALTH CHECK ENDPOINTS ==============
 # These match your constants.js HEALTH endpoints
 
@@ -84,7 +98,9 @@ def read_root():
         "message": "🚀 GenAI Backend is running!",
         "service": "GenAI Job Assistant API",
         "version": "1.0.0",
-        "status": "healthy"
+        "status": "healthy",
+        "cors_configured": True,
+        "frontend_supported": "https://job-portal-eight-orcin.vercel.app"
     }
 
 @app.get("/health", tags=["Health"])
@@ -95,6 +111,7 @@ async def comprehensive_health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0",
+        "cors_enabled": True,
         "checks": {}
     }
     
@@ -147,6 +164,17 @@ async def mongodb_health_check():
             }
         )
 
+# ✅ NEW: Keep-alive endpoint to prevent service from sleeping
+@app.get("/keep-alive", tags=["System"])
+async def keep_alive():
+    """Keep service alive - called periodically to prevent Render free tier sleep"""
+    return {
+        "status": "alive",
+        "timestamp": datetime.now().isoformat(),
+        "message": "Service is active and healthy",
+        "uptime": "running"
+    }
+
 # ============== REGISTER ROUTERS ==============
 # Register routers WITHOUT additional prefixes since they already have internal prefixes
 
@@ -175,7 +203,7 @@ app.include_router(
     tags=["AI Chatbot"]
 )
 
-# ============== MIDDLEWARE FOR REQUEST LOGGING ==============
+# ============== ENHANCED MIDDLEWARE ==============
 
 from fastapi import Request
 import time
@@ -185,8 +213,8 @@ async def log_requests(request: Request, call_next):
     """Log all incoming requests for monitoring"""
     start_time = time.time()
     
-    # Log request
-    logger.info(f"🌐 {request.method} {request.url.path} - Client: {request.client.host}")
+    # Log request with more details
+    logger.info(f"🌐 {request.method} {request.url.path} - Client: {request.client.host} - Origin: {request.headers.get('origin', 'N/A')}")
     
     # Process request
     response = await call_next(request)
@@ -200,6 +228,29 @@ async def log_requests(request: Request, call_next):
     
     return response
 
+@app.middleware("http")
+async def memory_cleanup_middleware(request: Request, call_next):
+    """Clean up memory after heavy AI operations to prevent crashes"""
+    response = await call_next(request)
+    
+    # Force garbage collection after AI-heavy requests
+    ai_heavy_paths = ["/chat", "/genai/cover-letter/", "/genai/jd-match/", "/genai/resume-tips/"]
+    if any(path in request.url.path for path in ai_heavy_paths):
+        gc.collect()  # Force garbage collection to free memory
+        logger.debug(f"🧹 Memory cleanup performed for {request.url.path}")
+    
+    return response
+
+@app.middleware("http")
+async def cors_debug_middleware(request: Request, call_next):
+    """Debug CORS requests"""
+    if request.method == "OPTIONS":
+        origin = request.headers.get("origin")
+        logger.info(f"🔍 CORS preflight request from origin: {origin}")
+    
+    response = await call_next(request)
+    return response
+
 # ============== UTILITY ENDPOINTS ==============
 
 @app.get("/api/info", tags=["System"])
@@ -210,6 +261,14 @@ async def api_info():
         "version": "1.0.0",
         "description": "Backend for AI-powered job assistance tools",
         "status": "running",
+        "cors_enabled": True,
+        "supported_origins": [
+            "http://localhost:5173", 
+            "http://localhost:3000",
+            "http://localhost:5174",
+            "http://localhost:5175",
+            "https://job-portal-eight-orcin.vercel.app"
+        ],
         "endpoints": {
             "cover_letter": {
                 "generate": "POST /genai/cover-letter/",
@@ -233,6 +292,7 @@ async def api_info():
                 "main": "GET /health",
                 "database": "GET /health/db",
                 "root": "GET /",
+                "keep_alive": "GET /keep-alive",
                 "description": "System health monitoring"
             },
             "system": {
@@ -246,11 +306,37 @@ async def api_info():
         "timestamp": datetime.now().isoformat()
     }
 
-# ============== ERROR HANDLING ==============
+# ✅ NEW: System status endpoint
+@app.get("/status", tags=["System"])
+async def system_status():
+    """Get detailed system status"""
+    return {
+        "service": "GenAI Job Assistant API",
+        "status": "operational",
+        "version": "1.0.0",
+        "environment": "production",
+        "features": {
+            "chat": "enabled",
+            "cover_letter_generation": "enabled", 
+            "resume_tips": "enabled",
+            "job_matching": "enabled",
+            "cors": "enabled"
+        },
+        "performance": {
+            "memory_management": "optimized",
+            "request_logging": "enabled",
+            "error_handling": "comprehensive"
+        },
+        "timestamp": datetime.now().isoformat()
+    }
+
+# ============== ENHANCED ERROR HANDLING ==============
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc):
-    """Custom 404 handler"""
+    """Custom 404 handler with helpful information"""
+    logger.warning(f"🔍 404 Error: {request.url.path} not found - Origin: {request.headers.get('origin', 'N/A')}")
+    
     return JSONResponse(
         status_code=404,
         content={
@@ -262,14 +348,33 @@ async def not_found_handler(request: Request, exc):
                 "clear_chat": "POST /clear", 
                 "health": "GET /health",
                 "health_db": "GET /health/db",
+                "keep_alive": "GET /keep-alive",
                 "cover_letter": "POST /genai/cover-letter/",
                 "cover_letter_update": "POST /genai/cover-letter/update/",
                 "resume_tips": "POST /genai/resume-tips/",
                 "job_match": "POST /genai/jd-match/",
                 "api_info": "GET /api/info",
+                "status": "GET /status",
                 "docs": "GET /docs"
             },
             "note": "Individual routers have their own internal prefixes",
+            "cors_info": "CORS is enabled for your frontend",
+            "timestamp": datetime.now().isoformat()
+        }
+    )
+
+# ✅ NEW: Timeout handling for long-running requests
+@app.exception_handler(asyncio.TimeoutError)
+async def timeout_handler(request: Request, exc):
+    """Handle request timeouts gracefully"""
+    logger.error(f"⏱️ Timeout error for {request.url.path}")
+    return JSONResponse(
+        status_code=408,
+        content={
+            "success": False,
+            "error": "Request timeout",
+            "message": "The request took too long to process. This might happen with complex AI operations.",
+            "suggestion": "Please try again or reduce the complexity of your request",
             "timestamp": datetime.now().isoformat()
         }
     )

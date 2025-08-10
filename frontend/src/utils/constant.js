@@ -72,7 +72,7 @@ export const HTTP_STATUS = {
 };
 
 export const REQUEST_CONFIG = {
-  TIMEOUT: 30000,
+  TIMEOUT: 60000,  // ✅ Increased from 30s to 60s for GenAI calls
   HEADERS: {
     'Content-Type': 'application/json',
     Accept: 'application/json'
@@ -126,7 +126,8 @@ export const CHAT_CONSTANTS = {
   MAX_FILE_SIZE: FILE_CONSTANTS.MAX_SIZE,
   ALLOWED_FILE_TYPES: FILE_CONSTANTS.ALLOWED_TYPES,
   DEFAULT_ERROR_MESSAGE: 'Sorry, something went wrong. Please try again.',
-  TYPING_INDICATOR_DELAY: 1000
+  TYPING_INDICATOR_DELAY: 1000,
+  CHAT_TIMEOUT: 60000  // ✅ 60 seconds for chat requests
 };
 
 // default export (optional, use only if needed)
