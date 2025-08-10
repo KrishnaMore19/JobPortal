@@ -1,0 +1,44 @@
+[
+  {
+    "tool": "interview_prep",
+    "timestamp": 1754460055.5156963,
+    "input_length": 66,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  },
+  {
+    "tool": "interview_prep",
+    "timestamp": 1754460094.2230613,
+    "input_length": 50,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  },
+  {
+    "tool": "interview_prep",
+    "timestamp": 1754478976.8056543,
+    "input_length": 50,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  },
+  {
+    "tool": "resume_analysis",
+    "timestamp": 1754479231.0369349,
+    "input_length": 67,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  },
+  {
+    "tool": "ats_check",
+    "timestamp": 1754483695.1463096,
+    "input_length": 45,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  },
+  {
+    "tool": "ats_check",
+    "timestamp": 1754486500.6605597,
+    "input_length": 45,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  }
+]

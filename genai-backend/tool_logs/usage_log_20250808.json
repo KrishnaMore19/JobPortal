@@ -1,0 +1,44 @@
+[
+  {
+    "tool": "ats_check",
+    "timestamp": 1754622045.8259785,
+    "input_length": 46,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  },
+  {
+    "tool": "ats_check",
+    "timestamp": 1754622211.4090276,
+    "input_length": 46,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  },
+  {
+    "tool": "ats_check",
+    "timestamp": 1754622298.5559237,
+    "input_length": 46,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  },
+  {
+    "tool": "resume_analysis",
+    "timestamp": 1754622448.6763651,
+    "input_length": 90,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  },
+  {
+    "tool": "general",
+    "timestamp": 1754622821.627094,
+    "input_length": 61,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  },
+  {
+    "tool": "career_guidance",
+    "timestamp": 1754623443.0026138,
+    "input_length": 51,
+    "success": true,
+    "user_id": "687a3e365749e64b471f0200"
+  }
+]

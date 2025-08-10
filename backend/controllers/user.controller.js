@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import getDataUri from "../utils/datauri.js";
 import cloudinary from "../utils/cloudinary.js";
+import { Job } from "../models/job.model.js";
 
 export const register = async (req, res) => {
     try {
@@ -14,9 +15,6 @@ export const register = async (req, res) => {
                 success: false
             });
         };
-        const file = req.file;
-        const fileUri = getDataUri(file);
-        const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
 
         const user = await User.findOne({ email });
         if (user) {
@@ -27,14 +25,21 @@ export const register = async (req, res) => {
         }
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        let profilePhoto = "";
+        if (req.file) {
+            const fileUri = getDataUri(req.file);
+            const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+            profilePhoto = cloudResponse.secure_url;
+        }
+
         await User.create({
             fullname,
             email,
             phoneNumber,
             password: hashedPassword,
             role,
-            profile:{
-                profilePhoto:cloudResponse.secure_url,
+            profile: {
+                profilePhoto: profilePhoto || "https://res.cloudinary.com/duhssymws/image/upload/v1752414864/default-profile_cm6mrr.jpg"
             }
         });
 
@@ -44,6 +49,10 @@ export const register = async (req, res) => {
         });
     } catch (error) {
         console.log(error);
+        return res.status(500).json({
+            message: "Internal server error",
+            success: false
+        });
     }
 }
 export const login = async (req, res) => {
@@ -115,12 +124,13 @@ export const updateProfile = async (req, res) => {
     try {
         const { fullname, email, phoneNumber, bio, skills } = req.body;
         
-        const file = req.file;
-        // cloudinary ayega idhar
-        const fileUri = getDataUri(file);
-        const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
-
-
+        let cloudResponse = null;
+        if (req.file) {
+            const fileUri = getDataUri(req.file);
+            if (fileUri) {
+                cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+            }
+        }
 
         let skillsArray;
         if(skills){
@@ -143,10 +153,11 @@ export const updateProfile = async (req, res) => {
         if(skills) user.profile.skills = skillsArray
       
         // resume comes later here...
-        if(cloudResponse){
-            user.profile.resume = cloudResponse.secure_url // save the cloudinary url
-            user.profile.resumeOriginalName = file.originalname // Save the original file name
-        }
+        if (req.file) {
+    user.profile.resume = req.file.buffer; // store binary
+    user.profile.resumeOriginalName = req.file.originalname;
+    user.profile.resumeMimeType = req.file.mimetype;
+}
 
 
         await user.save();
@@ -167,5 +178,196 @@ export const updateProfile = async (req, res) => {
         })
     } catch (error) {
         console.log(error);
+        return res.status(500).json({
+            message: "Internal server error",
+            success: false
+        });
     }
 }
+export const updateProfilePhoto = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                message: "Please provide a profile photo",
+                success: false
+            });
+        }
+
+        const fileUri = getDataUri(req.file);
+        const cloudResponse = await cloudinary.v2.uploader.upload(fileUri.content, {
+            folder: "profile_photos", // ✅ better folder name
+            resource_type: "image",   // ✅ specify image
+            access_mode: "public"
+        });
+
+        const userId = req.user._id; // ✅ use req.user._id (after auth middleware)
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false
+            });
+        }
+
+        user.profile.profilePhoto = cloudResponse.secure_url;
+        await user.save();
+
+        return res.status(200).json({
+            message: "Profile photo updated successfully",
+            user,
+            success: true
+        });
+    } catch (error) {
+        console.error("Error updating profile photo:", error);
+        return res.status(500).json({
+            message: "Failed to update profile photo",
+            success: false
+        });
+    }
+};
+export const getResume = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false
+            });
+        }
+
+        if (!user.profile.resume) {
+            return res.status(404).json({
+                message: "Resume not found",
+                success: false
+            });
+        }
+
+        // ✅ Redirect to the public Cloudinary resume URL
+        res.setHeader('Content-Type', user.profile.resumeMimeType || 'application/pdf');
+res.setHeader('Content-Disposition', `inline; filename="${user.profile.resumeOriginalName}"`);
+return res.send(user.profile.resume);
+
+    } catch (error) {
+        console.error("Error fetching resume:", error);
+        return res.status(500).json({
+            message: "Failed to fetch resume",
+            success: false
+        });
+    }
+};
+export const saveJob = async (req, res) => {
+    try {
+        const userId = req.id;
+        const jobId = req.params.id;
+
+        if (!jobId) {
+            return res.status(400).json({
+                message: "Job id is required.",
+                success: false
+            });
+        }
+
+        // Check if job exists
+        const job = await Job.findById(jobId);
+        if (!job) {
+            return res.status(404).json({
+                message: "Job not found",
+                success: false
+            });
+        }
+
+        // Check if job is already saved
+        const user = await User.findById(userId);
+        if (user.savedJobs.includes(jobId)) {
+            return res.status(400).json({
+                message: "Job already saved",
+                success: false
+            });
+        }
+
+        // Add job to saved jobs
+        user.savedJobs.push(jobId);
+        await user.save();
+
+        return res.status(200).json({
+            message: "Job saved successfully",
+            success: true
+        });
+    } catch (error) {
+        console.error("Error saving job:", error);
+        return res.status(500).json({
+            message: "Failed to save job",
+            success: false
+        });
+    }
+};
+
+export const getSavedJobs = async (req, res) => {
+    try {
+        const userId = req.id;
+        const user = await User.findById(userId).populate({
+            path: 'savedJobs',
+            populate: {
+                path: 'company'
+            }
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false
+            });
+        }
+
+        return res.status(200).json({
+            jobs: user.savedJobs,
+            success: true
+        });
+    } catch (error) {
+        console.error("Error fetching saved jobs:", error);
+        return res.status(500).json({
+            message: "Failed to fetch saved jobs",
+            success: false
+        });
+    }
+};
+
+export const unsaveJob = async (req, res) => {
+    try {
+        const userId = req.id;
+        const jobId = req.params.id;
+
+        if (!jobId) {
+            return res.status(400).json({
+                message: "Job id is required.",
+                success: false
+            });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false
+            });
+        }
+
+        // Remove job from saved jobs
+        user.savedJobs = user.savedJobs.filter(id => id.toString() !== jobId);
+        await user.save();
+
+        return res.status(200).json({
+            message: "Job removed from saved jobs",
+            success: true
+        });
+    } catch (error) {
+        console.error("Error unsaving job:", error);
+        return res.status(500).json({
+            message: "Failed to remove job from saved jobs",
+            success: false
+        });
+    }
+};

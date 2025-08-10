@@ -20,7 +20,8 @@ export const registerCompany = async (req, res) => {
         };
         company = await Company.create({
             name: companyName,
-            userId: req.id
+            userId: req.id,
+            logo: "https://res.cloudinary.com/dqgvjqjqj/image/upload/v1710000000/default-company-logo.png" // Default company logo
         });
 
         return res.status(201).json({
@@ -54,47 +55,74 @@ export const getCompany = async (req, res) => {
 export const getCompanyById = async (req, res) => {
     try {
         const companyId = req.params.id;
-        const company = await Company.findById(companyId);
+        const company = await Company.findById(companyId).populate('userId', 'fullname email phoneNumber');
+        
         if (!company) {
             return res.status(404).json({
                 message: "Company not found.",
                 success: false
-            })
+            });
         }
+
+        // Return company data without sensitive information
+        const companyData = {
+            _id: company._id,
+            name: company.name,
+            description: company.description,
+            website: company.website,
+            location: company.location,
+            logo: company.logo,
+            createdAt: company.createdAt,
+            contact: {
+                name: company.userId?.fullname,
+                email: company.userId?.email,
+                phone: company.userId?.phoneNumber
+            }
+        };
+
         return res.status(200).json({
-            company,
+            company: companyData,
             success: true
-        })
+        });
     } catch (error) {
-        console.log(error);
+        console.error("Error fetching company:", error);
+        return res.status(500).json({
+            message: "Failed to fetch company information",
+            success: false
+        });
     }
 }
 export const updateCompany = async (req, res) => {
     try {
         const { name, description, website, location } = req.body;
+        let updateData = { name, description, website, location };
  
-        const file = req.file;
-        // idhar cloudinary ayega
-        const fileUri = getDataUri(file);
-        const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
-        const logo = cloudResponse.secure_url;
+        // Only process file if it exists
+        if (req.file) {
+            const fileUri = getDataUri(req.file);
+            const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+            updateData.logo = cloudResponse.secure_url;
+        }
     
-        const updateData = { name, description, website, location, logo };
-
         const company = await Company.findByIdAndUpdate(req.params.id, updateData, { new: true });
 
         if (!company) {
             return res.status(404).json({
                 message: "Company not found.",
                 success: false
-            })
+            });
         }
         return res.status(200).json({
-            message:"Company information updated.",
-            success:true
-        })
+            message: "Company information updated.",
+            company,
+            success: true
+        });
 
     } catch (error) {
-        console.log(error);
+        console.error("Error updating company:", error);
+        return res.status(500).json({
+            message: "Failed to update company information. Please try again.",
+            success: false
+        });
     }
 }

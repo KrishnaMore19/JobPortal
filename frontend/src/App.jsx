@@ -14,7 +14,11 @@ import AdminJobs from "./components/admin/AdminJobs";
 import PostJob from './components/admin/PostJob'
 import Applicants from './components/admin/Applicants'
 import ProtectedRoute from './components/admin/ProtectedRoute'
-
+import { Provider } from 'react-redux'
+import { PersistGate } from 'redux-persist/integration/react'
+import { store, persistor } from './redux/store'
+import { Toaster } from 'sonner'
+import CompanyProfile from './components/CompanyProfile'
 
 const appRouter = createBrowserRouter([
   {
@@ -45,6 +49,10 @@ const appRouter = createBrowserRouter([
     path: "/profile",
     element: <Profile />
   },
+  {
+    path: "/company/:id",
+    element: <CompanyProfile />
+  },
   // admin ke liye yha se start hoga
   {
     path:"/admin/companies",
@@ -70,14 +78,22 @@ const appRouter = createBrowserRouter([
     path:"/admin/jobs/:id/applicants",
     element:<ProtectedRoute><Applicants/></ProtectedRoute> 
   },
-
 ])
-function App() {
 
+function App() {
   return (
-    <div>
-      <RouterProvider router={appRouter} />
-    </div>
+    <Provider store={store}>
+      <PersistGate loading={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#6A38C2]"></div>
+        </div>
+      } persistor={persistor}>
+        <div className="min-h-screen bg-gray-50">
+          <RouterProvider router={appRouter} />
+          <Toaster />
+        </div>
+      </PersistGate>
+    </Provider>
   )
 }
 
