@@ -1,26 +1,22 @@
 // constants.js
 
-// ------------------  ENVIRONMENT CONFIGURATION ------------------
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const USE_LOCAL = process.env.REACT_APP_USE_LOCAL === 'true' || false;
-
-// ------------------  BACKEND BASES ------------------
-const LOCAL_BACKEND_BASE = "http://localhost:8080/api/v1";
-const PROD_BACKEND_BASE = "https://jobportal-1-9hbm.onrender.com/api/v1";
-
-const BACKEND_BASE = (IS_PRODUCTION && !USE_LOCAL) ? PROD_BACKEND_BASE : LOCAL_BACKEND_BASE;
-
-export const USER_API_END_POINT        = `${BACKEND_BASE}/user`;
-export const JOB_API_END_POINT         = `${BACKEND_BASE}/job`;
-export const APPLICATION_API_END_POINT = `${BACKEND_BASE}/application`;
-export const COMPANY_API_END_POINT     = `${BACKEND_BASE}/company`;
+// ------------------  BACKEND BASES  ------------------
+export const USER_API_END_POINT        = "https://jobportal-1-9hbm.onrender.com/api/v1/user";
+export const JOB_API_END_POINT         = "https://jobportal-1-9hbm.onrender.com/api/v1/job";
+export const APPLICATION_API_END_POINT = "https://jobportal-1-9hbm.onrender.com/api/v1/application";
+export const COMPANY_API_END_POINT     = "https://jobportal-1-9hbm.onrender.com/api/v1/company";
 
 // ------------------  GEN-AI BASE ------------------
-const LOCAL_GENAI_BASE = "http://127.0.0.1:8000";
-const PROD_GENAI_BASE = "https://jobportal-8o5z.onrender.com";
+export const GENAI_API_BASE            = "https://jobportal-8o5z.onrender.com";   // chat & gen-ai
+export const API_BASE_URL              = GENAI_API_BASE;           // legacy alias
 
-export const GENAI_API_BASE = (IS_PRODUCTION && !USE_LOCAL) ? PROD_GENAI_BASE : LOCAL_GENAI_BASE;
-export const API_BASE_URL = GENAI_API_BASE; // legacy alias
+// For local development, uncomment these lines and comment the production URLs above:
+// export const USER_API_END_POINT        = "http://localhost:8080/api/v1/user";
+// export const JOB_API_END_POINT         = "http://localhost:8080/api/v1/job";
+// export const APPLICATION_API_END_POINT = "http://localhost:8080/api/v1/application";
+// export const COMPANY_API_END_POINT     = "http://localhost:8080/api/v1/company";
+// export const GENAI_API_BASE            = "http://127.0.0.1:8000";
+// export const API_BASE_URL              = GENAI_API_BASE;
 
 // ------------------  GEN-AI ROUTES ------------------
 export const COVER_LETTER_API          = `${GENAI_API_BASE}/genai/cover-letter`;
@@ -58,8 +54,7 @@ export const API_ENDPOINTS = {
     CHECK: `${GENAI_API_BASE}/health`,
     DB:    `${GENAI_API_BASE}/health/db`,
     BASE:  `${GENAI_API_BASE}/health`
-  },
-
+  }
 };
 
 // ------------------  REDUX / HTTP / UI CONSTANTS ------------------
