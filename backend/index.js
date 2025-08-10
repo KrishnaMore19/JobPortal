@@ -22,7 +22,7 @@ const corsOptions = {
       'http://localhost:5173',
       'http://localhost:5174',
       'http://localhost:5175',
-      'https://job-portal-git-main-krishnamore19s-projects.vercel.app/'
+      'https://job-portal-eight-orcin.vercel.app'
     ],
     credentials: true,  // ✅ Allow cookies/credentials
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

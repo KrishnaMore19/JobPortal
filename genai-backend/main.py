@@ -35,7 +35,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:5174",
         "http://localhost:5175",
-        "https://job-portal-git-main-krishnamore19s-projects.vercel.app/"  # ✅ Added your Vercel frontend URL
+        "https://job-portal-eight-orcin.vercel.app"  # ✅ Added your Vercel frontend URL
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -100,7 +100,7 @@ def read_root():
         "version": "1.0.0",
         "status": "healthy",
         "cors_configured": True,
-        "frontend_supported": "https://job-portal-git-main-krishnamore19s-projects.vercel.app/"
+        "frontend_supported": "https://job-portal-eight-orcin.vercel.app"
     }
 
 @app.get("/health", tags=["Health"])
@@ -267,7 +267,7 @@ async def api_info():
             "http://localhost:3000",
             "http://localhost:5174",
             "http://localhost:5175",
-            "https://job-portal-git-main-krishnamore19s-projects.vercel.app/"
+            "https://job-portal-eight-orcin.vercel.app"
         ],
         "endpoints": {
             "cover_letter": {
