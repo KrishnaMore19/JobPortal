@@ -48,6 +48,39 @@ export const API_ENDPOINTS = {
     BASE:   GENAI_API_BASE
   },
 
+  // ✅ Backend API endpoints - matching your actual routes
+  USER: {
+    LOGIN:    `${USER_API_END_POINT}/login`,       // POST /api/v1/user/login
+    REGISTER: `${USER_API_END_POINT}/register`,    // POST /api/v1/user/register
+    PROFILE:  `${USER_API_END_POINT}/profile`,     // GET /api/v1/user/profile
+    LOGOUT:   `${USER_API_END_POINT}/logout`,      // POST /api/v1/user/logout
+    BASE:     USER_API_END_POINT
+  },
+
+  JOBS: {
+    GET_ALL:  `${JOB_API_END_POINT}/get`,          // GET /api/v1/job/get
+    POST:     `${JOB_API_END_POINT}/post`,         // POST /api/v1/job/post
+    BY_ID:    `${JOB_API_END_POINT}/get`,          // GET /api/v1/job/get/:id
+    ADMIN:    `${JOB_API_END_POINT}/getadminjobs`, // GET /api/v1/job/getadminjobs
+    BASE:     JOB_API_END_POINT
+  },
+
+  APPLICATIONS: {
+    APPLY:    `${APPLICATION_API_END_POINT}/apply`,    // POST /api/v1/application/apply
+    GET_ALL:  `${APPLICATION_API_END_POINT}/get`,      // GET /api/v1/application/get
+    GET_APPLICANTS: `${APPLICATION_API_END_POINT}/applicants`, // GET /api/v1/application/applicants
+    UPDATE_STATUS: `${APPLICATION_API_END_POINT}/status/update`, // POST /api/v1/application/status/update
+    BASE:     APPLICATION_API_END_POINT
+  },
+
+  COMPANIES: {
+    GET_ALL:  `${COMPANY_API_END_POINT}/get`,      // GET /api/v1/company/get
+    POST:     `${COMPANY_API_END_POINT}/register`, // POST /api/v1/company/register
+    BY_ID:    `${COMPANY_API_END_POINT}/get`,      // GET /api/v1/company/get/:id
+    UPDATE:   `${COMPANY_API_END_POINT}/update`,   // PUT /api/v1/company/update/:id
+    BASE:     COMPANY_API_END_POINT
+  },
+
   // Legacy endpoints (kept for backward compatibility)
   HEALTH: {
     CHECK: `${GENAI_API_BASE}/health`,
@@ -76,7 +109,9 @@ export const REQUEST_CONFIG = {
   HEADERS: {
     'Content-Type': 'application/json',
     Accept: 'application/json'
-  }
+  },
+  // ✅ Default config for authenticated requests
+  WITH_CREDENTIALS: true
 };
 
 export const UI_CONSTANTS = {
@@ -92,6 +127,7 @@ export const UI_CONSTANTS = {
     },
     ERROR: {
       LOGIN_REQUIRED: 'Please login to access this feature',
+      UNAUTHORIZED: 'Your session has expired. Please login again.',  // ✅ New error message
       NETWORK_ERROR:  'Network error. Please check your connection.',
       SERVER_ERROR:   'Server error. Please try again later.',
       GENERIC_ERROR:  'Something went wrong. Please try again.',
