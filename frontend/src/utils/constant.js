@@ -1,22 +1,21 @@
 // constants.js
 
 // ------------------  BACKEND BASES  ------------------
+// PRODUCTION URLs (server is running - checking route paths)
 export const USER_API_END_POINT        = "https://jobportal-1-9hbm.onrender.com/api/v1/user";
 export const JOB_API_END_POINT         = "https://jobportal-1-9hbm.onrender.com/api/v1/job";
 export const APPLICATION_API_END_POINT = "https://jobportal-1-9hbm.onrender.com/api/v1/application";
 export const COMPANY_API_END_POINT     = "https://jobportal-1-9hbm.onrender.com/api/v1/company";
+export const GENAI_API_BASE            = "https://jobportal-8o5z.onrender.com";
 
-// ------------------  GEN-AI BASE ------------------
-export const GENAI_API_BASE            = "https://jobportal-8o5z.onrender.com";   // chat & gen-ai
-export const API_BASE_URL              = GENAI_API_BASE;           // legacy alias
-
-// For local development, uncomment these lines and comment the production URLs above:
+// LOCAL DEVELOPMENT URLs (uncomment for local testing)
 // export const USER_API_END_POINT        = "http://localhost:8080/api/v1/user";
 // export const JOB_API_END_POINT         = "http://localhost:8080/api/v1/job";
 // export const APPLICATION_API_END_POINT = "http://localhost:8080/api/v1/application";
 // export const COMPANY_API_END_POINT     = "http://localhost:8080/api/v1/company";
 // export const GENAI_API_BASE            = "http://127.0.0.1:8000";
-// export const API_BASE_URL              = GENAI_API_BASE;
+
+export const API_BASE_URL              = GENAI_API_BASE;           // legacy alias
 
 // ------------------  GEN-AI ROUTES ------------------
 export const COVER_LETTER_API          = `${GENAI_API_BASE}/genai/cover-letter`;
