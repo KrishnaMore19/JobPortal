@@ -1,14 +1,14 @@
 // constants.js
 
 // ------------------  BACKEND BASES  ------------------
-// PRODUCTION URLs (server is running - checking route paths)
+// ⚠️  DEBUGGING: If backend issues persist, switch to local URLs below
 export const USER_API_END_POINT        = "https://jobportal-1-9hbm.onrender.com/api/v1/user";
 export const JOB_API_END_POINT         = "https://jobportal-1-9hbm.onrender.com/api/v1/job";
 export const APPLICATION_API_END_POINT = "https://jobportal-1-9hbm.onrender.com/api/v1/application";
 export const COMPANY_API_END_POINT     = "https://jobportal-1-9hbm.onrender.com/api/v1/company";
 export const GENAI_API_BASE            = "https://jobportal-8o5z.onrender.com";
 
-// LOCAL DEVELOPMENT URLs (uncomment for local testing)
+// 🔧 LOCAL DEVELOPMENT URLs (uncomment if backend issues persist)
 // export const USER_API_END_POINT        = "http://localhost:8080/api/v1/user";
 // export const JOB_API_END_POINT         = "http://localhost:8080/api/v1/job";
 // export const APPLICATION_API_END_POINT = "http://localhost:8080/api/v1/application";
