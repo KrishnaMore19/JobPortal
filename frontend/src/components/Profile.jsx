@@ -32,24 +32,28 @@ function Profile() {
   const hasResume = !!user?.profile?.resume;
 
   useEffect(() => {
-    const refreshUserData = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(`${USER_API_END_POINT}/profile`, {
-          withCredentials: true,
-        });
+  const refreshUserData = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${USER_API_END_POINT}/profile`, {
+        withCredentials: true, // ✅ send cookie
+      });
 
-        if (response.data.success && response.data.user) {
-          dispatch(setUser(response.data.user));
-        }
-      } catch (error) {
-        console.error("Failed to refresh user data:", error);
-      } finally {
-        setLoading(false);
+      if (response.data.success && response.data.user) {
+        dispatch(setUser(response.data.user));
+      } else {
+        // If no user, clear state
+        dispatch(setUser(null));
       }
-    };
+    } catch (error) {
+      console.error("Failed to refresh user data:", error);
+      dispatch(setUser(null)); // optional: clear user if error
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    refreshUserData();
+  refreshUserData();
   }, [dispatch]);
 
   useEffect(() => {

@@ -101,22 +101,26 @@ export const login = async (req, res) => {
             profile: user.profile
         }
 
-        const cookieOptions = {
-            maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
-            httpOnly: true,                   // ✅ Fixed: was 'httpsOnly'
-            secure: process.env.NODE_ENV === 'production', // ✅ Secure in production
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // ✅ Allow cross-origin
-            path: '/'                         // ✅ Ensure cookie is accessible
-        };
+        const isProduction = process.env.NODE_ENV === 'production';
 
-        return res.status(200)
-            .cookie("token", token, cookieOptions)
-            .json({
-                message: `Welcome back ${user.fullname}`,
-                user,
-                token, // ✅ Also send token in response for backup
-                success: true
-            });
+const cookieOptions = {
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
+    httpOnly: true, // secure from JS access
+    secure: isProduction, // require HTTPS in production
+    sameSite: isProduction ? 'none' : 'lax', // allow cross-site in prod, safer in dev
+    path: '/'
+};
+
+return res
+    .status(200)
+    .cookie("token", token, cookieOptions)
+    .json({
+        message: `Welcome back ${user.fullname}`,
+        user,
+        token, // send token in body so frontend can also store it if needed
+        success: true
+    });
+    
     } catch (error) {
         console.log("Login error:", error);
         return res.status(500).json({
