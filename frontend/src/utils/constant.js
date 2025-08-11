@@ -1,19 +1,32 @@
 // constants.js
 
-// ------------------  BACKEND BASES  ------------------
-// ⚠️  DEBUGGING: If backend issues persist, switch to local URLs below
-export const USER_API_END_POINT        = "https://jobportal-1-9hbm.onrender.com/api/v1/user";
-export const JOB_API_END_POINT         = "https://jobportal-1-9hbm.onrender.com/api/v1/job";
-export const APPLICATION_API_END_POINT = "https://jobportal-1-9hbm.onrender.com/api/v1/application";
-export const COMPANY_API_END_POINT     = "https://jobportal-1-9hbm.onrender.com/api/v1/company";
-export const GENAI_API_BASE            = "https://jobportal-8o5z.onrender.com";
+// ------------------  ENVIRONMENT DETECTION  ------------------
+const isDevelopment = 
+  typeof window !== 'undefined' 
+    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    : process.env.NODE_ENV === 'development';
 
-// 🔧 LOCAL DEVELOPMENT URLs (uncomment if backend issues persist)
-// export const USER_API_END_POINT        = "http://localhost:8080/api/v1/user";
-// export const JOB_API_END_POINT         = "http://localhost:8080/api/v1/job";
-// export const APPLICATION_API_END_POINT = "http://localhost:8080/api/v1/application";
-// export const COMPANY_API_END_POINT     = "http://localhost:8080/api/v1/company";
-// export const GENAI_API_BASE            = "http://127.0.0.1:8000";
+// ------------------  BACKEND BASES  ------------------
+// 🚀 PRODUCTION URLs (Render) - Now Active
+export const USER_API_END_POINT        = isDevelopment 
+  ? "http://localhost:8080/api/v1/user"
+  : "https://jobportal-1-9hbm.onrender.com/api/v1/user";
+
+export const JOB_API_END_POINT         = isDevelopment
+  ? "http://localhost:8080/api/v1/job" 
+  : "https://jobportal-1-9hbm.onrender.com/api/v1/job";
+
+export const APPLICATION_API_END_POINT = isDevelopment
+  ? "http://localhost:8080/api/v1/application"
+  : "https://jobportal-1-9hbm.onrender.com/api/v1/application";
+
+export const COMPANY_API_END_POINT     = isDevelopment
+  ? "http://localhost:8080/api/v1/company"
+  : "https://jobportal-1-9hbm.onrender.com/api/v1/company";
+
+export const GENAI_API_BASE            = isDevelopment
+  ? "http://127.0.0.1:8000"
+  : "https://jobportal-8o5z.onrender.com";
 
 export const API_BASE_URL              = GENAI_API_BASE;           // legacy alias
 
@@ -54,6 +67,7 @@ export const API_ENDPOINTS = {
     REGISTER: `${USER_API_END_POINT}/register`,    // POST /api/v1/user/register
     PROFILE:  `${USER_API_END_POINT}/profile`,     // GET /api/v1/user/profile
     LOGOUT:   `${USER_API_END_POINT}/logout`,      // POST /api/v1/user/logout
+    UPDATE:   `${USER_API_END_POINT}/profile/update`, // PUT /api/v1/user/profile/update
     BASE:     USER_API_END_POINT
   },
 
@@ -91,7 +105,20 @@ export const API_ENDPOINTS = {
 
 // ------------------  REDUX / HTTP / UI CONSTANTS ------------------
 export const ACTION_TYPES = {
-  // Your action types go here
+  // Authentication
+  LOGIN_SUCCESS: 'LOGIN_SUCCESS',
+  LOGIN_FAILURE: 'LOGIN_FAILURE',
+  LOGOUT: 'LOGOUT',
+  
+  // Jobs
+  FETCH_JOBS_REQUEST: 'FETCH_JOBS_REQUEST',
+  FETCH_JOBS_SUCCESS: 'FETCH_JOBS_SUCCESS',
+  FETCH_JOBS_FAILURE: 'FETCH_JOBS_FAILURE',
+  
+  // Applications
+  APPLY_JOB_REQUEST: 'APPLY_JOB_REQUEST',
+  APPLY_JOB_SUCCESS: 'APPLY_JOB_SUCCESS',
+  APPLY_JOB_FAILURE: 'APPLY_JOB_FAILURE',
 };
 
 export const HTTP_STATUS = {
@@ -101,17 +128,70 @@ export const HTTP_STATUS = {
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
-  INTERNAL_SERVER_ERROR: 500
+  INTERNAL_SERVER_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503
 };
 
 export const REQUEST_CONFIG = {
-  TIMEOUT: 60000,  // ✅ Increased from 30s to 60s for GenAI calls
+  TIMEOUT: isDevelopment ? 30000 : 60000,  // ✅ Longer timeout for production
   HEADERS: {
     'Content-Type': 'application/json',
     Accept: 'application/json'
   },
   // ✅ Default config for authenticated requests
   WITH_CREDENTIALS: true
+};
+
+// ✅ Enhanced API request helper
+export const createApiRequest = (endpoint, options = {}) => ({
+  ...options,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...options.headers
+  },
+  credentials: 'include', // Important for authentication cookies
+  timeout: REQUEST_CONFIG.TIMEOUT,
+  mode: 'cors' // Explicitly set CORS mode
+});
+
+// ✅ Enhanced error handling
+export const handleApiError = (error, endpoint) => {
+  console.error(`API Error at ${endpoint}:`, error);
+  
+  if (error.name === 'TypeError' && error.message.includes('fetch')) {
+    return {
+      message: 'Network error. Please check your internet connection.',
+      status: 'NETWORK_ERROR'
+    };
+  }
+  
+  if (error.status === 401) {
+    return {
+      message: 'Session expired. Please login again.',
+      status: 'UNAUTHORIZED',
+      redirect: '/login'
+    };
+  }
+  
+  if (error.status === 403) {
+    return {
+      message: 'Access denied. Insufficient permissions.',
+      status: 'FORBIDDEN'
+    };
+  }
+  
+  if (error.status >= 500) {
+    return {
+      message: 'Server error. Please try again later.',
+      status: 'SERVER_ERROR'
+    };
+  }
+  
+  return {
+    message: error.message || 'Something went wrong. Please try again.',
+    status: 'GENERIC_ERROR'
+  };
 };
 
 export const UI_CONSTANTS = {
@@ -123,16 +203,23 @@ export const UI_CONSTANTS = {
       RESUME_TIPS_LOADED:     'Resume analysis completed!',
       JOB_MATCH_COMPLETED:    'Job match analysis completed!',
       CHAT_MESSAGE_SENT:      'Message sent successfully!',
-      FILE_UPLOADED:          'File uploaded successfully!'
+      FILE_UPLOADED:          'File uploaded successfully!',
+      LOGIN_SUCCESS:          'Welcome back! Login successful.',
+      LOGOUT_SUCCESS:         'Logged out successfully.',
+      REGISTRATION_SUCCESS:   'Account created successfully! Please login.',
+      APPLICATION_SUCCESS:    'Application submitted successfully!',
+      PROFILE_UPDATED:        'Profile updated successfully!'
     },
     ERROR: {
       LOGIN_REQUIRED: 'Please login to access this feature',
-      UNAUTHORIZED: 'Your session has expired. Please login again.',  // ✅ New error message
+      UNAUTHORIZED: 'Your session has expired. Please login again.',
       NETWORK_ERROR:  'Network error. Please check your connection.',
       SERVER_ERROR:   'Server error. Please try again later.',
       GENERIC_ERROR:  'Something went wrong. Please try again.',
       FILE_UPLOAD_ERROR: 'File upload failed. Please try again.',
-      INVALID_FILE_TYPE: 'Invalid file type. Please upload PDF or DOCX files only.'
+      INVALID_FILE_TYPE: 'Invalid file type. Please upload PDF or DOCX files only.',
+      CORS_ERROR: 'Connection blocked. Please check server configuration.',
+      TIMEOUT_ERROR: 'Request timed out. Please try again.'
     }
   },
   LOADING_STATES: {
@@ -141,7 +228,9 @@ export const UI_CONSTANTS = {
     LOADING:    'Loading…',
     PROCESSING: 'Processing…',
     UPLOADING:  'Uploading…',
-    SENDING:    'Sending…'
+    SENDING:    'Sending…',
+    CONNECTING: 'Connecting…',
+    AUTHENTICATING: 'Authenticating…'
   }
 };
 
@@ -163,8 +252,22 @@ export const CHAT_CONSTANTS = {
   ALLOWED_FILE_TYPES: FILE_CONSTANTS.ALLOWED_TYPES,
   DEFAULT_ERROR_MESSAGE: 'Sorry, something went wrong. Please try again.',
   TYPING_INDICATOR_DELAY: 1000,
-  CHAT_TIMEOUT: 60000  // ✅ 60 seconds for chat requests
+  CHAT_TIMEOUT: isDevelopment ? 30000 : 60000  // ✅ Longer timeout for production
 };
+
+// ✅ Debug information
+export const DEBUG_INFO = {
+  ENVIRONMENT: isDevelopment ? 'development' : 'production',
+  USER_API: USER_API_END_POINT,
+  JOB_API: JOB_API_END_POINT,
+  GENAI_API: GENAI_API_BASE,
+  TIMESTAMP: new Date().toISOString()
+};
+
+// Log debug info in development
+if (isDevelopment && typeof console !== 'undefined') {
+  console.log('🔧 Constants Debug Info:', DEBUG_INFO);
+}
 
 // default export (optional, use only if needed)
 export default {
@@ -175,5 +278,8 @@ export default {
   REQUEST_CONFIG,
   UI_CONSTANTS,
   FILE_CONSTANTS,
-  CHAT_CONSTANTS
+  CHAT_CONSTANTS,
+  createApiRequest,
+  handleApiError,
+  DEBUG_INFO
 };
