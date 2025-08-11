@@ -101,15 +101,32 @@ export const login = async (req, res) => {
             profile: user.profile
         }
 
-        return res.status(200).cookie("token", token, { maxAge: 1 * 24 * 60 * 60 * 1000, httpsOnly: true, sameSite: 'strict' }).json({
-            message: `Welcome back ${user.fullname}`,
-            user,
-            success: true
-        })
+        const cookieOptions = {
+            maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
+            httpOnly: true,                   // ✅ Fixed: was 'httpsOnly'
+            secure: process.env.NODE_ENV === 'production', // ✅ Secure in production
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // ✅ Allow cross-origin
+            path: '/'                         // ✅ Ensure cookie is accessible
+        };
+
+        return res.status(200)
+            .cookie("token", token, cookieOptions)
+            .json({
+                message: `Welcome back ${user.fullname}`,
+                user,
+                token, // ✅ Also send token in response for backup
+                success: true
+            });
     } catch (error) {
-        console.log(error);
+        console.log("Login error:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            success: false
+        });
     }
 }
+
+
 export const logout = async (req, res) => {
     try {
         return res.status(200).cookie("token", "", { maxAge: 0 }).json({
