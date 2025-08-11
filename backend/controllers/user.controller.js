@@ -129,12 +129,25 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
     try {
-        return res.status(200).cookie("token", "", { maxAge: 0 }).json({
-            message: "Logged out successfully.",
-            success: true
-        })
+        const cookieOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            path: '/'
+        };
+
+        return res.status(200)
+            .cookie("token", "", { ...cookieOptions, maxAge: 0 })
+            .json({
+                message: "Logged out successfully.",
+                success: true
+            });
     } catch (error) {
-        console.log(error);
+        console.log("Logout error:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            success: false
+        });
     }
 }
 export const updateProfile = async (req, res) => {
