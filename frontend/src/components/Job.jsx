@@ -5,7 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { saveJob } from '@/redux/jobSlice';
+import { saveJob, unsaveJob } from '@/redux/jobSlice';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { USER_API_END_POINT } from '@/utils/constant';
@@ -41,6 +41,31 @@ const Job = ({ job }) => {
     }
   };
 
+  const handleUnsaveJob = async () => {
+    try {
+      const response = await axios.delete(
+        `${USER_API_END_POINT}/unsave-job/${job._id}`,
+        { withCredentials: true }
+      );
+
+      if (response.data.success) {
+        dispatch(unsaveJob(job._id));
+        toast.success("Job removed from saved list");
+      }
+    } catch (error) {
+      console.error("Error unsaving job:", error);
+      toast.error(error.response?.data?.message || "Failed to remove job");
+    }
+  };
+
+  const toggleSaveJob = () => {
+    if (isSaved) {
+      handleUnsaveJob();
+    } else {
+      handleSaveJob();
+    }
+  };
+
   return (
     <div className="p-6 rounded-xl border bg-gradient-to-br from-[#F4F0FF] via-[#F9F9FF] to-white shadow-md hover:shadow-xl transition-shadow duration-300">
       <div className="flex items-center justify-between">
@@ -51,8 +76,11 @@ const Job = ({ job }) => {
           variant="outline"
           size="icon"
           className="rounded-full hover:scale-110 transition-transform"
+          onClick={toggleSaveJob}
         >
-          <Bookmark className="text-purple-600" />
+          <Bookmark 
+            className={`${isSaved ? 'text-purple-600 fill-purple-600' : 'text-purple-600'}`} 
+          />
         </Button>
       </div>
 
@@ -108,15 +136,14 @@ const Job = ({ job }) => {
           Details
         </Button>
         <Button
-          onClick={handleSaveJob}
+          onClick={toggleSaveJob}
           className={`${
             isSaved
               ? 'bg-gray-500 hover:bg-gray-600'
               : 'bg-[#4B2993] hover:bg-[#3A2175]'
           } text-white`}
-          disabled={isSaved}
         >
-          {isSaved ? 'Saved' : 'Save For Later'}
+          {isSaved ? 'Unsave Job' : 'Save For Later'}
         </Button>
       </div>
     </div>

@@ -31,7 +31,8 @@ const useGetAllJobs = () => {
                 withCredentials: true,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json','Authorization': `Bearer ${user?.token}` 
+                    
                 },
                 timeout: 30000,
                 signal: abortControllerRef.current.signal // ✅ Add cancellation

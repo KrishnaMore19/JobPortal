@@ -14,4 +14,6 @@ requests
 python-multipart
 google-generativeai
 google-api-python-client
-
+uvicorn[standard]
+sentence-transformers
+faiss-cpu

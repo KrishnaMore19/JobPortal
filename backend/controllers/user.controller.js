@@ -405,3 +405,45 @@ export const unsaveJob = async (req, res) => {
         });
     }
 };
+
+
+// Add this function to your user.controller.js file after the existing functions
+
+export const getProfile = async (req, res) => {
+    try {
+        const userId = req.id; // This comes from the isAuthenticated middleware
+        
+        // Find user by ID and exclude password field
+        const user = await User.findById(userId).select('-password');
+        
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false
+            });
+        }
+
+        // Return user data in the same format as other functions
+        const userData = {
+            _id: user._id,
+            fullname: user.fullname,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            role: user.role,
+            profile: user.profile,
+            savedJobs: user.savedJobs
+        };
+
+        return res.status(200).json({
+            user: userData,
+            success: true,
+            message: "Profile fetched successfully"
+        });
+    } catch (error) {
+        console.log("Error in getProfile:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            success: false
+        });
+    }
+};

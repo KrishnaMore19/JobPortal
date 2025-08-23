@@ -1,69 +1,34 @@
-# routes/chat.py
-
-from fastapi import APIRouter, UploadFile, Form, File
+from fastapi import APIRouter, UploadFile, Form, File, HTTPException
 from fastapi.responses import JSONResponse
 from typing import Optional
-import shutil
 import os
 import time
+import traceback
+import shutil
+import re
 
 from services.ats_score import score_resume
 from services.job_recommender import recommend_jobs
 from services.career_guide import get_career_guidance
 from services.faq import answer_faq
-from services.genai_chat import get_genai_response  # ✅ NEW IMPORT
+from services.rag_service import get_rag_response, rag_chatbot
+from services.data_service import store_resume_for_user, store_chat_message
 
 router = APIRouter()
 UPLOAD_DIR = "uploaded_resumes"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Additional endpoints from constants.js (keeping your main /chat route unchanged)
 
-# Health check endpoint (GET /health)
-@router.get("/health")
-async def health_check():
-    """Health check endpoint from constants.js"""
-    return JSONResponse({
-        "status": "healthy",
-        "service": "GenAI Chatbot Service",
-        "timestamp": time.time(),
-        "version": "1.0.0"
-    })
+# ✅ Utility: Clean HTML tags from service outputs
+def strip_html_tags(text: str) -> str:
+    if not text:
+        return text
+    # Replace <strong>...</strong> with **...**
+    text = re.sub(r"<strong>(.*?)</strong>", r"**\1**", text, flags=re.DOTALL)
+    # Remove any other HTML tags (if any left)
+    text = re.sub(r"<[^>]+>", "", text)
+    return text.strip()
 
-# Database health check (GET /health/db) 
-@router.get("/health/db")
-async def db_health_check():
-    """Database health check endpoint from constants.js"""
-    try:
-        return JSONResponse({
-            "status": "healthy",
-            "database": "connected",
-            "timestamp": time.time()
-        })
-    except Exception as e:
-        return JSONResponse({
-            "status": "unhealthy", 
-            "database": "disconnected",
-            "error": str(e),
-            "timestamp": time.time()
-        }, status_code=503)
-
-# Clear chat history endpoint (POST /clear)
-@router.post("/clear")
-async def clear_chat_history(user_id: str = Form(...)):
-    """Clear chat history endpoint from constants.js"""
-    try:
-        return JSONResponse({
-            "success": True,
-            "message": "Chat history cleared successfully",
-            "user_id": user_id,
-            "timestamp": time.time()
-        })
-    except Exception as e:
-        return JSONResponse({
-            "success": False,
-            "error": str(e)
-        }, status_code=500)
 
 @router.post("/chat")
 async def chat_route(
@@ -90,62 +55,171 @@ async def chat_route(
                 "size": os.path.getsize(file_path),
                 "path": file_path
             }
+            try:
+                await store_resume_for_user(user_id, file_path)
+                await rag_chatbot.add_user_resume_to_knowledge(user_id)
+            except Exception as e:
+                print(f"⚠️ Failed to store resume in DB: {e}")
 
-        # ✅ Response initialization
-        response_text = "I'm here to help! Ask me to analyze your resume, recommend jobs, answer FAQs, or give career guidance."
-        resume_score = None
-        job_matches = None
-        career_guidance = None
-        faq_answer = None
+        # --- Message processing ---
+        response_text = "I'm here to help! Ask me about your resume, jobs, career guidance, or any questions."
+        message_type = "general"
+        additional_data = {}
 
-        # 🎯 Resume Score
-        if "score" in message.lower() or "ats" in message.lower():
-            resume_score = await score_resume(user_id)
-            if "error" in resume_score:
-                response_text = resume_score["error"]
-            else:
-                response_text = (
-                    f"Great! Here's your ATS analysis:\n\n"
-                    f"🎯 **ATS Score: {resume_score['score']}/100 ({resume_score['category']})**\n\n"
-                    f"**Improvement Tips:**\n"
-                    + "\n".join([f"{i+1}. {tip}" for i, tip in enumerate(resume_score["tips"])]).strip()
-                    + "\n\nYou can also ask me to recommend jobs!"
-                )
+        msg_lower = message.lower()
 
-        # 💼 Job Recommendations
-        elif "job" in message.lower() and "recommend" in message.lower():
-            job_matches = await recommend_jobs(user_id)
-            if job_matches and job_matches.get("recommendations"):
-                response_text = "🔍 Based on your resume, here are some jobs you might like:\n\n"
-                for job in job_matches["recommendations"]:
-                    response_text += (
-                        f"📌 **{job['title']}** at *{job['company']}* ({job['location']})\n"
-                        f"Match Score: {job['score']}%\n"
-                        f"{job['description']}...\n\n"
+        # ✅ Resume scoring
+        if any(k in msg_lower for k in ["score", "resume", "ats"]):
+            try:
+                resume_score = await score_resume(user_id)
+                message_type = "resume_score"
+                if "error" in resume_score:
+                    response_text = f"❌ {resume_score['error']}\nUpload your resume first to score it."
+                else:
+                    score_emoji = "🟢" if resume_score['score'] >= 80 else "🟡" if resume_score['score'] >= 60 else "🔴"
+                    response_text = (
+                        f"{score_emoji} ATS Resume Analysis Complete!\n\n"
+                        f"Score: {resume_score['score']}/100 ({resume_score['category']})"
                     )
-            else:
-                response_text = job_matches.get("message", "No job matches found.")
+                    additional_data["resume_score"] = resume_score
+            except Exception as e:
+                response_text = f"❌ Error scoring resume: {str(e)}"
 
-        # 🧭 Career Guidance
-        elif "career" in message.lower() or "roadmap" in message.lower():
-            career_guidance = await get_career_guidance(message)
-            response_text = career_guidance
+        # ✅ Job recommendations
+        elif any(k in msg_lower for k in ["job", "recommend", "opportunity"]):
+            try:
+                jobs = await recommend_jobs(user_id)
+                message_type = "job_recommendation"
+                if jobs and jobs.get("recommendations"):
+                    lines = []
+                    for idx, job in enumerate(jobs["recommendations"][:5], 1):
+                        lines.append(f"{idx}. {job['title']} at {job['company']} ({job['location']}) - Score: {job['score']}%")
+                    response_text = "💼 Top Job Recommendations:\n" + "\n".join(lines)
+                    additional_data["jobs"] = jobs
+                else:
+                    response_text = "No job matches found. Upload/update your resume or ask for career guidance."
+            except Exception as e:
+                response_text = f"❌ Error recommending jobs: {str(e)}"
 
-        # ❓ FAQs
-        elif any(q in message.lower() for q in ["how do", "where can", "what is", "faq", "help"]):
-            faq_answer = answer_faq(message)
-            response_text = faq_answer
+        # ✅ Career guidance (Cleans HTML)
+        elif any(k in msg_lower for k in ["career", "roadmap", "guidance", "advice", "skills"]):
+            try:
+                guidance = await get_career_guidance(message)
+                clean_guidance = strip_html_tags(guidance)   # ✅ Remove <strong>
+                response_text = f"🧭 Career Guidance:\n{clean_guidance}"
+                message_type = "career_guidance"
+                additional_data["career_guidance"] = clean_guidance
+            except Exception as e:
+                response_text = f"❌ Error generating career guidance: {str(e)}"
 
-        # 🧠 GenAI Fallback: handle all other general queries
+        # ✅ FAQs (Cleans HTML too if needed)
+        elif any(k in msg_lower for k in ["how do", "what is", "where can", "faq", "help", "support"]):
+            try:
+                faq_answer = answer_faq(message)
+                message_type = "faq"
+                if faq_answer and "not sure" not in faq_answer.lower():
+                    faq_clean = strip_html_tags(faq_answer)
+                    response_text = f"💬 FAQ Answer: {faq_clean}"
+                    additional_data["faq_answer"] = faq_clean
+                else:
+                    rag_resp = await get_rag_response(message, user_id)
+                    response_text = strip_html_tags(rag_resp)
+                    message_type = "rag_faq"
+            except Exception:
+                rag_resp = await get_rag_response(message, user_id)
+                response_text = strip_html_tags(rag_resp)
+                message_type = "rag_fallback"
+
+        # ✅ General fallback (RAG, cleans HTML too)
         else:
-            response_text = get_genai_response(message)
+            try:
+                if not rag_chatbot.vector_store:
+                    response_text = "📄 Knowledge base is loading. Please wait or ask about resume/job/career."
+                    message_type = "system_loading"
+                else:
+                    rag_resp = await get_rag_response(message, user_id)
+                    response_text = strip_html_tags(rag_resp)
+                    message_type = "rag_general"
+            except Exception as e:
+                response_text = "🤖 Error processing your request. Try asking about resume, jobs, or career."
+                message_type = "error_fallback"
 
-        return JSONResponse({
+        # ✅ Store chat in DB
+        try:
+            await store_chat_message(
+                user_id=user_id,
+                user_message=message,
+                bot_response=response_text,
+                message_type=message_type,
+                additional_data=additional_data
+            )
+        except Exception as e:
+            print(f"⚠️ Failed to store chat: {e}")
+
+        # ✅ Build response
+        response_data = {
             "success": True,
-            "message": response_text,
+            "message": response_text,   # always plain text / markdown now
+            "user_id": user_id,
+            "action_performed": action,
+            "message_type": message_type,
+            "timestamp": time.time(),
+            "rag_enhanced": True
+        }
+        if file_uploaded:
+            response_data["file_uploaded"] = True
+            response_data["file_info"] = file_info
+        if additional_data:
+            response_data["data"] = additional_data
+
+        return JSONResponse(response_data)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ✅ Health check endpoint (GET /health)
+@router.get("/health")
+async def health_check():
+    return JSONResponse({
+        "status": "healthy",
+        "service": "GenAI Chatbot Service",
+        "timestamp": time.time(),
+        "version": "1.0.0"
+    })
+
+
+# ✅ Database health check (GET /health/db)
+@router.get("/health/db")
+async def db_health_check():
+    try:
+        return JSONResponse({
+            "status": "healthy",
+            "database": "connected",
             "timestamp": time.time()
         })
+    except Exception as e:
+        return JSONResponse({
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e),
+            "timestamp": time.time()
+        }, status_code=503)
 
+
+# ✅ Clear chat history endpoint (POST /clear)
+@router.post("/clear")
+async def clear_chat_history(user_id: str = Form(...)):
+    try:
+        return JSONResponse({
+            "success": True,
+            "message": "Chat history cleared successfully",
+            "user_id": user_id,
+            "timestamp": time.time()
+        })
     except Exception as e:
         return JSONResponse({
             "success": False,
